@@ -1,15 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-    url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -23,17 +18,18 @@ model User {
 }
 
 model Event {
-  id          String    @id @default(uuid())
-  title       String
-  description String
-  eventDate   DateTime
-  venue       String
-  totalSeats  Int
-  rowCount    Int
-  seatsPerRow Int
-  createdAt   DateTime  @default(now())
-  seats       Seat[]
-  bookings    Booking[]
+  id           String    @id @default(uuid())
+  title        String
+  description  String
+  eventDate    DateTime
+  venue        String
+  totalSeats   Int
+  rowCount     Int
+  seatsPerRow  Int
+  pricePerSeat Int       // in paise — Rs 100 = 10000
+  createdAt    DateTime  @default(now())
+  seats        Seat[]
+  bookings     Booking[]
 }
 
 model Seat {
@@ -44,16 +40,29 @@ model Seat {
   status     String   @default("available")
   event      Event    @relation(fields: [eventId], references: [id])
   booking    Booking?
+
+  @@unique([eventId, rowLabel, seatNumber])
 }
 
 model Booking {
-  id        String   @id @default(uuid())
-  userId    String
-  eventId   String
-  seatId    String   @unique
-  status    String   @default("pending")
-  bookedAt  DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  event     Event    @relation(fields: [eventId], references: [id])
-  seat      Seat     @relation(fields: [seatId], references: [id])
+  id          String    @id @default(uuid())
+  userId      String
+  eventId     String
+  status      String    @default("pending")
+  totalAmount Int       // in paise
+  scanned     Boolean   @default(false)
+  scannedAt   DateTime?
+  emailSent   Boolean   @default(false)
+  bookedAt    DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+  event       Event     @relation(fields: [eventId], references: [id])
+  seats       BookingSeat[]
+}
+
+model BookingSeat {
+  id        String  @id @default(uuid())
+  bookingId String
+  seatId    String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  seat      Seat    @relation(fields: [seatId], references: [id])
 }
