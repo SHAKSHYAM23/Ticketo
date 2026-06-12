@@ -1,9 +1,28 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from "dotenv";
+import prisma from './config/db.js'
+import redis from './config/redis.js'
+import { connectKafka } from './config/kafka.js'
+import { connectRabbitMQ } from './config/rabbitmq.js'
+
+
 import authRoutes from './routes/auth.routes.js';
 
 import eventRoutes from "./routes/event.routes.js";
+
+
+await connectKafka()
+await connectRabbitMQ()
+
+// test prisma
+await prisma.$connect()
+console.log('✅ Postgres connected')
+
+// test redis
+await redis.ping()
+console.log('✅ Redis ping OK')
+
 // import seatRoutes from "./routes/seat.routes.js";
 
 
