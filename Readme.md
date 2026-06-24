@@ -29,20 +29,23 @@ TicketFlow is an event-driven booking platform designed to handle the chaos of h
 ![k6](https://img.shields.io/badge/k6-7D64FF?style=for-the-badge&logo=k6&logoColor=white)
 
 </div>
+<br><br>
 
 ## Table of Contents
 
-* [Demo & UI Preview](#demo--ui-preview)
-* [Architecture ](#architecture)
-* [System Flow](#system-flow)
-* [⚡ Performance & Load Testing](#performance--load-testing)
-* [API Endpoints](#api-endpoints)
-* [Data Models](#data-models)
-* [🚀 Local Setup](#-local-setup)
+* [✨ Demo & UI Preview](#demo)
+* [🏛️ Architecture](#architecture)
+* [🛤️ System Flow](#system)
+* [⚡ Performance & Load Testing](#result)
+* [🔌 API Endpoints](#api)
+* [💾 Data Models](#models)
+* [🚀 Local Setup](#local)
 
 
 ---
-## Demo & UI Preview
+<br><br>
+<a id="demo"></a>
+# ✨ Demo & UI Preview
 
 Ticketo lets users browse events, lock seats, pay, and receive a verifiable QR-code ticket over email — all without double-booking. The core challenge is seat inventory: multiple users hitting "Book" at the same time for the last few seats. Solving that cleanly, without pessimistic DB locks killing throughput, is what shaped every major architectural decision in this project.
 
@@ -59,8 +62,9 @@ Ticketo lets users browse events, lock seats, pay, and receive a verifiable QR-c
 </p>
 
 ---
-
-## Architecture
+<br><br>
+<a id="architecture"></a>
+# 🏛️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -110,8 +114,9 @@ Ticketo lets users browse events, lock seats, pay, and receive a verifiable QR-c
 ```
 
 ---
-
-## System Flow
+<br><br>
+<a id="system"></a>
+# 🛤️ System Flow
 
 ### 1. Comprehensive Event-Driven Booking Flow
 ```mermaid
@@ -164,7 +169,9 @@ flowchart TD
 ```
 
 ---
-## ⚡ Performance & Load Testing
+<br><br>
+<a id="result"></a>
+# ⚡ Performance & Load Testing
 
 The system was load-tested using **k6** with **1,000 concurrent Virtual Users (VUs)** simulating the complete booking workflow:
 
@@ -179,6 +186,7 @@ The system was load-tested using **k6** with **1,000 concurrent Virtual Users (V
 * Prometheus + Grafana for observability
 
 > **Note:** All benchmarks were collected on a **single local machine** running Docker containers. Production deployments with horizontal scaling and dedicated infrastructure would support substantially higher throughput.
+
 
 ### Results (All Thresholds Passed)
 
@@ -272,9 +280,12 @@ Scaling this pipeline typically involves adding additional Kafka consumer instan
     Click any image to enlarge • k6 thresholds • k6 execution statistics • Grafana monitoring dashboard • Kafka events/sec
   </sub>
 </p>
----
 
-## API Endpoints
+---
+<br><br>
+<a id="api"></a>
+
+#  🔌 API Endpoints
 
 The REST API is strictly organized by domain. Sensitive endpoints are secured via JWT authentication, while critical actions (like login and email delivery) are rate-limited to prevent abuse.
 
@@ -317,8 +328,9 @@ The REST API is strictly organized by domain. Sensitive endpoints are secured vi
 
 
 ---
-
-## Data Models
+<br><br>
+<a id="models"></a>
+# 💾 Data Models
 
 The database is structured to strictly separate seat inventory from user booking records. This separation is what allows the system to utilize temporary Redis locks without causing database bottlenecks.
 
@@ -379,8 +391,9 @@ erDiagram
 ```
    
 ---
-
-## 🚀 Local Setup 
+<br><br>
+<a id="local"></a>
+# 🚀 Local Setup 
 
 TicketFlow uses **Docker** to orchestrate all required infrastructure, including **PostgreSQL**, **Redis**, **Apache Kafka**, and **RabbitMQ**, allowing you to get the entire distributed system running with just a few commands.
 
@@ -498,7 +511,7 @@ This command starts:
 
 ---
 
-
+<br><br>
 ## 👨‍💻 Author
 
 **Shakshyam Pandey**
