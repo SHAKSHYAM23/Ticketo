@@ -2,11 +2,8 @@ import Stripe from 'stripe'
 import stripe from '../config/stripe.js'
 import redis from '../config/redis.js'
 import prisma from '../config/db.js'
-import {
-  paymentIntentDuration
-} from '../config/metrics.js'
-
-
+import { paymentIntentDuration } from '../config/metrics.js'
+import crypto from 'crypto' 
 
 interface CreatePaymentIntentParams {
   seatIds: string[]
@@ -20,11 +17,7 @@ interface PaymentIntentResult {
   currency: string
 }
 
-
-
 const lockKey = (seatId: string): string =>  `lock:seat:${seatId}`
-
-
 
 export const createPaymentIntent = async ({
   seatIds,
@@ -32,7 +25,9 @@ export const createPaymentIntent = async ({
   userId
 }: CreatePaymentIntentParams): Promise<PaymentIntentResult> => {
 
-  
+  console.log("=== Creating Payment Intent ===");
+  console.log({ eventId, seatIds });
+
   const lockChecks = await Promise.all(
     seatIds.map(id => redis.get(lockKey(id)))
   )
@@ -47,7 +42,6 @@ export const createPaymentIntent = async ({
     )
   }
 
-
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     select: { pricePerSeat: true, title: true }
@@ -57,29 +51,33 @@ export const createPaymentIntent = async ({
     throw new Error('Event not found')
   }
 
- 
-  const totalAmount = seatIds.length * event.pricePerSeat
-
+  const totalAmount = seatIds.length * event.pricePerSeat * 100
 
   const end = paymentIntentDuration.startTimer()
 
- const intent = await stripe.paymentIntents.create(
-  {
-    amount:   totalAmount,
-    currency: 'inr',
-    metadata: {
-      seatIds:    seatIds.join(','),
-      eventId,
-      userId,
-      eventTitle: event.title
+  // 2. Hash the long string to stay under Stripe's 255-character limit
+  const rawKey = `${userId}-${eventId}-${seatIds.sort().join('-')}`
+  const hashedIdempotencyKey = crypto
+    .createHash('sha256')
+    .update(rawKey)
+    .digest('hex')
+
+  const intent = await stripe.paymentIntents.create(
+    {
+      amount:   totalAmount,
+      currency: 'inr',
+      metadata: {
+        seatIds:    seatIds.join(','),
+        eventId,
+        userId,
+        eventTitle: event.title
+      }
+    },
+    {
+      
+      idempotencyKey: hashedIdempotencyKey 
     }
-  },
-  {
-   
-    idempotencyKey: `${userId}-${eventId}-${seatIds.sort().join('-')}`
-    
-  }
-)
+  )
 
   end() 
 
@@ -94,8 +92,6 @@ export const createPaymentIntent = async ({
   }
 }
 
-
-
 export const verifyWebhookSignature = (
   rawBody: Buffer,
   signature: string
@@ -105,7 +101,6 @@ export const verifyWebhookSignature = (
     throw new Error('STRIPE_WEBHOOK_SECRET not defined')
   }
 
- 
   const event = stripe.webhooks.constructEvent(
     rawBody,
     signature,

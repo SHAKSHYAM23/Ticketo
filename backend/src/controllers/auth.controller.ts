@@ -61,7 +61,7 @@ export const adminLogin = async (
     return
   }
 
-  // extra check — reject non-admins immediately
+
   if (user.role !== 'admin') {
     res.status(403).json({ error: 'Admin access only' })
     return

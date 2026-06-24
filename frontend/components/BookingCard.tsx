@@ -3,7 +3,15 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { MapPin, Calendar, Loader2, Check } from 'lucide-react'
+import {
+  MapPin,
+  Calendar,
+  Loader2,
+  Check,
+  Ticket,
+  Receipt,
+} from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import api from '@/lib/api'
@@ -18,16 +26,35 @@ interface BookingCardProps {
   booking: Booking
 }
 
-export default function BookingCard({ booking }: BookingCardProps) {
+export default function BookingCard({
+  booking,
+}: BookingCardProps) {
   const router = useRouter()
+
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
 
+
   const id = booking._id ?? booking.id ?? ''
-  const title = booking.event?.title ?? booking.eventTitle ?? 'Event'
-  const venue = booking.event?.venue ?? booking.venue ?? '—'
-  const date = booking.event?.date ?? booking.date
+
+  const title =
+    booking.event?.title ??
+    booking.eventTitle ??
+    'Event'
+
+  const description = booking.event?.description
+
+  const venue =
+    booking.event?.venue ??
+    booking.venue ??
+    '—'
+
+  const date =
+    booking.event?.eventDate ??
+    booking.date
+
   const seats = bookingSeatLabels(booking)
+
   const status = (booking.status ?? '').toLowerCase()
 
   const statusStyle =
@@ -37,13 +64,16 @@ export default function BookingCard({ booking }: BookingCardProps) {
 
   const handleResend = async () => {
     setResending(true)
+
     try {
       await api.post(`/api/bookings/${id}/resend-email`)
       setResent(true)
       toast.success('Email resent')
     } catch (err: any) {
+   
       toast.error(
-        err?.response?.data?.message || 'Could not resend the email.',
+        err?.response?.data?.error ??
+          'Could not resend the email.',
       )
     } finally {
       setResending(false)
@@ -51,41 +81,75 @@ export default function BookingCard({ booking }: BookingCardProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+    <div className="flex flex-col gap-5 rounded-xl border border-border bg-card p-5 transition-shadow hover:shadow-md">
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-balance text-lg font-semibold leading-snug text-card-foreground">
-          {title}
-        </h3>
-        <Badge className={`shrink-0 capitalize ${statusStyle} hover:${statusStyle}`}>
-          {booking.status ?? 'pending'}
+        <div>
+          <h3 className="text-lg font-semibold text-card-foreground">
+            {title}
+          </h3>
+
+          {description && (
+            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </div>
+
+        <Badge className={`capitalize ${statusStyle}`}>
+          {booking.status ?? 'Pending'}
         </Badge>
       </div>
 
-      <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-        <span className="flex items-center gap-2">
+      {/* Event Details */}
+      <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
           <MapPin className="h-4 w-4" />
           {venue}
-        </span>
-        <span className="flex items-center gap-2">
+        </div>
+
+        <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4" />
-          {formatEventDate(date)}
-        </span>
+          {date ? formatEventDate(date) : '—'}
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
+      <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
         <div>
-          <span className="text-xs text-muted-foreground">Seats</span>
-          <p className="font-medium text-card-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Ticket className="h-3 w-3" />
+            Seats
+          </div>
+
+          <p className="mt-1 font-medium text-card-foreground">
             {seats.length ? seats.join(', ') : '—'}
           </p>
         </div>
+
         <div>
-          <span className="text-xs text-muted-foreground">Amount paid</span>
-          <p className="font-medium text-card-foreground">
-            {formatINR(booking.amount)}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Receipt className="h-3 w-3" />
+            Amount Paid
+          </div>
+
+          <p className="mt-1 font-semibold text-card-foreground">
+           
+           {formatINR(((booking as any).totalAmount ?? booking.amount ?? 0) / 100)}
           </p>
         </div>
       </div>
+
+      {booking.bookingRef && (
+        <div className="rounded-lg bg-secondary/40 p-3">
+          <p className="text-xs text-muted-foreground">
+            Booking Reference
+          </p>
+
+          <p className="mt-1 font-mono text-sm font-semibold">
+            {booking.bookingRef}
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <Button
@@ -95,18 +159,20 @@ export default function BookingCard({ booking }: BookingCardProps) {
         >
           View Details
         </Button>
+
         <Button
           variant="ghost"
-          className="flex-1 text-muted-foreground hover:text-foreground"
-          onClick={handleResend}
+          className="flex-1"
           disabled={resending || resent}
+          onClick={handleResend}
         >
           {resending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : resent ? (
-            <Check className="h-4 w-4 text-success" />
+            <Check className="mr-2 h-4 w-4 text-success" />
           ) : null}
-          {resent ? 'Email resent' : 'Resend Email'}
+
+          {resent ? 'Email Resent' : 'Resend Email'}
         </Button>
       </div>
     </div>

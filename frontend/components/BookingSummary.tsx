@@ -13,7 +13,6 @@ interface BookingSummaryProps {
   seatLabels: string[]
   onConfirm: () => void
   loading: boolean
-  /** Provided once seats are locked — shows the countdown timer */
   expiresIn?: number | null
   onExpire?: () => void
   locked?: boolean
@@ -35,32 +34,79 @@ export default function BookingSummary({
 
   return (
     <div className="flex flex-col gap-5 rounded-xl border border-border bg-card p-5">
+      {/* Event Info */}
       <div>
-        <h2 className="text-lg font-semibold leading-snug text-card-foreground">
-          {event?.title ?? 'Booking summary'}
+        <h2 className="text-lg font-semibold text-card-foreground">
+          {event?.title ?? 'Booking Summary'}
         </h2>
+
+        {event?.description && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            {event.description}
+          </p>
+        )}
+
         {event && (
-          <div className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              {event.venue}
-            </span>
-            <span className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              {formatEventDate(event.date)}
-            </span>
-          </div>
+          <>
+            <div className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                {event.venue}
+              </span>
+
+              <span className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                {formatEventDate(event.eventDate)}
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">Rows</p>
+                <p className="font-semibold">{event.rowCount ?? '-'}</p>
+              </div>
+
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Seats / Row
+                </p>
+                <p className="font-semibold">
+                  {event.seatsPerRow ?? '-'}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Available
+                </p>
+                <p className="font-semibold">
+                  {event.availableSeats ?? '-'}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Total Seats
+                </p>
+                <p className="font-semibold">
+                  {event.totalSeats ?? '-'}
+                </p>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
       <Separator />
 
+      {/* Selected Seats */}
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Selected seats
+          Selected Seats
         </p>
+
         {hasSeats ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap gap-2">
             {seatLabels.map((label) => (
               <span
                 key={label}
@@ -72,33 +118,56 @@ export default function BookingSummary({
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
-            No seats selected yet. Tap available (green) seats to add them.
+            Select seats from the seat map to continue.
           </p>
         )}
       </div>
 
       <Separator />
 
-      <div className="flex flex-col gap-2 text-sm">
-        <div className="flex items-center justify-between text-muted-foreground">
-          <span>
-            {formatINR(price)} × {selectedSeats.length}{' '}
-            {selectedSeats.length === 1 ? 'seat' : 'seats'}
+      {/* Price Summary */}
+      <div className="space-y-3 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            Seat Price
+          </span>
+          <span>{formatINR(price)}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            Selected Seats
+          </span>
+          <span>{selectedSeats.length}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            Amount
           </span>
           <span>{formatINR(total)}</span>
         </div>
-        <div className="flex items-center justify-between text-base font-semibold text-card-foreground">
+
+        <Separator />
+
+        <div className="flex justify-between text-base font-semibold">
           <span>Total</span>
           <span>{formatINR(total)}</span>
         </div>
       </div>
 
+      {/* Reservation Timer */}
       {locked && typeof expiresIn === 'number' && onExpire && (
-        <div className="flex flex-col gap-2">
+        <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
-            Seats reserved. Complete payment before the timer runs out.
+            Seats are reserved for you. Complete payment before the timer
+            expires.
           </p>
-          <Timer seconds={expiresIn} onExpire={onExpire} />
+
+          <Timer
+            seconds={expiresIn}
+            onExpire={onExpire}
+          />
         </div>
       )}
 
@@ -108,8 +177,11 @@ export default function BookingSummary({
         disabled={!hasSeats || loading}
         onClick={onConfirm}
       >
-        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-        {locked ? 'Proceed to payment' : 'Confirm Booking'}
+        {loading && (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        )}
+
+        {locked ? 'Proceed to Payment' : 'Confirm Booking'}
       </Button>
     </div>
   )

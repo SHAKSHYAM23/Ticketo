@@ -5,60 +5,40 @@ import {
   seatLockCounter,
   seatLockFailCounter,
   seatLockDuration,
-  seatLockExpiredCounter
+  
 } from '../config/metrics.js'
 
-export const LOCK_TTL  = 30   
+export const LOCK_TTL = 300
 export const MAX_SEATS = 6
 
-const lockKey      = (seatId: string): string => `lock:seat:${seatId}`
-const userLocksKey = (userId: string, eventId: string): string =>
-  `user:locks:${userId}:${eventId}`
+const lockKey = (seatId: string): string => `lock:seat:${seatId}`
+const userLocksKey = (userId: string, eventId: string): string => `user:locks:${userId}:${eventId}`
 
 interface LockSeatsParams {
   seatIds: string[]
   eventId: string
-  userId:  string
+  userId: string
 }
 
 interface LockSeatsResult {
-  success:     boolean
+  success: boolean
   lockedSeats: string[]
   failedSeats: string[]
 }
 
-interface SeatWithDetails {
-  id:         string
-  rowLabel:   string
-  seatNumber: number
-  status:     string
-  eventId:    string
-}
-
-
-const localMemoryCache: Record<string, { data: object[], expiresAt: number }> = {}
-
-
 const LOCK_SCRIPT = `
-  -- Step 1: Check if ANY requested seat is already locked
   for i, key in ipairs(KEYS) do
     if redis.call('EXISTS', key) == 1 then
-      return 0 -- Fail immediately, no partial locks
+      return 0
     end
   end
-  
-  -- Step 2: If we get here, all requested seats are free. Lock them all.
   for i, key in ipairs(KEYS) do
     redis.call('SET', key, ARGV[1], 'EX', ARGV[2])
   end
-  
-  return 1 -- Total Success
+  return 1
 `
 
-// ─── INVALIDATE CACHE ─────────────────────────────────
-// Call this after a successful payment/booking
 export const invalidateSeatCache = async (eventId: string): Promise<void> => {
-  delete localMemoryCache[eventId]
   await redis.del(`seats:static:${eventId}`)
 }
 
@@ -67,7 +47,6 @@ export const lockSeats = async ({
   eventId,
   userId
 }: LockSeatsParams): Promise<LockSeatsResult> => {
-
   if (seatIds.length > MAX_SEATS) {
     throw new Error(`Maximum ${MAX_SEATS} seats allowed per booking`)
   }
@@ -75,7 +54,6 @@ export const lockSeats = async ({
   if (seatIds.length === 0) {
     throw new Error('At least one seat must be selected')
   }
-
 
   const seats = await prisma.seat.findMany({
     where: { id: { in: seatIds }, eventId }
@@ -91,8 +69,7 @@ export const lockSeats = async ({
     throw new Error(`Seats already booked: ${labels}`)
   }
 
-
-  const ulKey  = userLocksKey(userId, eventId)
+  const ulKey = userLocksKey(userId, eventId)
   const previousSeatIds = await redis.sMembers(ulKey)
 
   if (previousSeatIds.length > 0) {
@@ -100,24 +77,23 @@ export const lockSeats = async ({
     await redis.del(ulKey)
 
     const previousSeats = await prisma.seat.findMany({
-      where:  { id: { in: previousSeatIds } },
+      where: { id: { in: previousSeatIds } },
       select: { id: true, rowLabel: true, seatNumber: true }
     })
 
     const io = getIO()
     previousSeats.forEach(seat => {
       io.to(`event:${eventId}`).emit('seat_updated', {
-        seatId:     seat.id,
-        status:     'available',
-        rowLabel:   seat.rowLabel,
+        seatId: seat.id,
+        status: 'available',
+        rowLabel: seat.rowLabel,
         seatNumber: seat.seatNumber
       })
     })
   }
 
-
-  const endTimer  = seatLockDuration.startTimer()
-  const keys      = seatIds.map(lockKey)
+  const endTimer = seatLockDuration.startTimer()
+  const keys = seatIds.map(lockKey)
   
   const rawResult = await redis.eval(LOCK_SCRIPT, {
     keys,
@@ -125,15 +101,12 @@ export const lockSeats = async ({
   })
   endTimer()
 
-
   if (rawResult === 0) {
     seatLockFailCounter.inc({ eventId })
     throw new Error('Could not lock seats — one or more seats were just taken by another user.')
   }
-
   
   seatLockCounter.inc({ eventId })
-
 
   await redis.sAdd(ulKey, seatIds as [string, ...string[]])
   await redis.expire(ulKey, LOCK_TTL)
@@ -141,33 +114,31 @@ export const lockSeats = async ({
   const io = getIO()
   seats.forEach(seat => {
     io.to(`event:${eventId}`).emit('seat_updated', {
-      seatId:     seat.id,
-      status:     'locked',
-      rowLabel:   seat.rowLabel,
+      seatId: seat.id,
+      status: 'locked',
+      rowLabel: seat.rowLabel,
       seatNumber: seat.seatNumber
     })
   })
 
   console.log(
-    `Locked ${seats.length} seats for user ${userId} — ` +
-    `${seats.map(s => `${s.rowLabel}${s.seatNumber}`).join(', ')}`
+    `Locked ${seats.length} seats for user ${userId} — ${seats.map(s => `${s.rowLabel}${s.seatNumber}`).join(', ')}`
   )
 
   return {
-    success:     true,
-    lockedSeats: seatIds, 
-    failedSeats: []      
+    success: true,
+    lockedSeats: seatIds,
+    failedSeats: []
   }
 }
 
 export const unlockSeats = async (
   seatIds: string[],
-  userId:  string,
+  userId: string,
   eventId: string
 ): Promise<void> => {
-
   const seats = await prisma.seat.findMany({
-    where:  { id: { in: seatIds } },
+    where: { id: { in: seatIds } },
     select: { id: true, rowLabel: true, seatNumber: true, status: true }
   })
 
@@ -180,7 +151,6 @@ export const unlockSeats = async (
     })
   )
 
- 
   if (seatIds.length > 0) {
     await redis.sRem(userLocksKey(userId, eventId), seatIds as [string, ...string[]])
   }
@@ -190,9 +160,9 @@ export const unlockSeats = async (
     .filter(seat => seat.status !== 'booked')
     .forEach(seat => {
       io.to(`event:${eventId}`).emit('seat_updated', {
-        seatId:     seat.id,
-        status:     'available',
-        rowLabel:   seat.rowLabel,
+        seatId: seat.id,
+        status: 'available',
+        rowLabel: seat.rowLabel,
         seatNumber: seat.seatNumber
       })
     })
@@ -201,54 +171,45 @@ export const unlockSeats = async (
 }
 
 export const getSeatsWithStatus = async (
-  eventId:           string,
+  eventId: string,
   requestingUserId?: string
 ): Promise<object[]> => {
-
   const STATIC_CACHE_KEY = `seats:static:${eventId}`
-  const now = Date.now()
-
-
-  if (localMemoryCache[eventId] && localMemoryCache[eventId].expiresAt > now) {
-    return localMemoryCache[eventId].data
-  }
-
-
   let seats: any[]
+  
   const cachedStatic = await redis.get(STATIC_CACHE_KEY)
 
   if (cachedStatic) {
     seats = JSON.parse(cachedStatic)
   } else {
     seats = await prisma.seat.findMany({
-      where:   { eventId },
-      orderBy: [ { rowLabel: 'asc' }, { seatNumber: 'asc' } ],
-      select:  { id: true, rowLabel: true, seatNumber: true, status: true }
+      where: { eventId },
+      orderBy: [{ rowLabel: 'asc' }, { seatNumber: 'asc' }],
+      select: { id: true, rowLabel: true, seatNumber: true, status: true }
     })
     
     if (!seats.length) {
       throw new Error('No seats found for this event')
     }
     
-   
-    await redis.set(STATIC_CACHE_KEY, JSON.stringify(seats), { EX: 60 }) 
+    await redis.set(STATIC_CACHE_KEY, JSON.stringify(seats), { EX: 60 })
   }
 
- 
   const lockKeys = seats.map((s: any) => lockKey(s.id))
   const lockValues = await redis.mGet(lockKeys)
-
   
   const groupedByRow: Record<string, object[]> = {}
 
   seats.forEach((seat: any, i: number) => {
     const lockedBy = lockValues[i]
     let status = 'available'
+    let lockedByMe = false
 
     if (seat.status === 'booked') {
       status = 'booked'
     } else if (lockedBy) {
       status = 'locked'
+      lockedByMe = lockedBy === requestingUserId
     }
 
     if (!groupedByRow[seat.rowLabel]) {
@@ -256,20 +217,13 @@ export const getSeatsWithStatus = async (
     }
 
     groupedByRow[seat.rowLabel]!.push({
-      id:         seat.id,
-      rowLabel:   seat.rowLabel,
+      id: seat.id,
+      rowLabel: seat.rowLabel,
       seatNumber: seat.seatNumber,
-      status
+      status,
+      lockedByMe
     })
   })
 
-  const finalResult = [groupedByRow]
-
-
-  localMemoryCache[eventId] = {
-    data: finalResult,
-    expiresAt: now + 1000
-  }
-
-  return finalResult
+  return [groupedByRow]
 }

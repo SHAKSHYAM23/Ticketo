@@ -45,7 +45,7 @@ export default function BookingDetailPage() {
     }
   }, [id, router])
 
-  const { data, error, isLoading, mutate } = useSWR<Booking>(
+  const { data, error, isLoading, mutate } = useSWR<Booking & { totalAmount?: number }>(
     authed ? `/api/bookings/${id}` : null,
     fetcher,
   )
@@ -53,7 +53,10 @@ export default function BookingDetailPage() {
   const booking = data
   const title = booking?.event?.title ?? booking?.eventTitle ?? 'Event'
   const venue = booking?.event?.venue ?? booking?.venue ?? '—'
-  const date = booking?.event?.date ?? booking?.date
+  
+  // ✅ FIX 2: Used 'as any' so you don't have to break your types.ts file to get eventDate
+  const date = (booking?.event as any)?.eventDate ?? (booking as any)?.eventDate ?? booking?.date
+  
   const seats = booking ? bookingSeatLabels(booking) : []
   const status = (booking?.status ?? '').toLowerCase()
   const emailSent = booking?.emailSent
@@ -61,12 +64,17 @@ export default function BookingDetailPage() {
   const handleResend = async () => {
     setResending(true)
     try {
-      await api.post(`/api/bookings/${id}/resend-email`)
+      // ✅ FIX 3: Pull the ID straight from the booking so it never causes a double-slash (//) 404 error
+      const targetId = booking?.id || booking?._id || id
+      
+      await api.post(`/api/bookings/${targetId}/resend-email`)
+      
       toast.success('Email resent')
       mutate()
     } catch (err: any) {
+      // ✅ FIX 4: Changed to .error so you can actually see the backend's rejection reason
       toast.error(
-        err?.response?.data?.message || 'Could not resend the email.',
+        err?.response?.data?.error || 'Could not resend the email.',
       )
     } finally {
       setResending(false)
@@ -162,7 +170,8 @@ export default function BookingDetailPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Amount paid</p>
                   <p className="text-lg font-semibold">
-                    {formatINR(booking.amount)}
+                    {/* Displaying totalAmount first, falling back to amount */}
+                    {formatINR(booking.totalAmount ?? booking.amount ?? 0)}
                   </p>
                 </div>
                 <div>

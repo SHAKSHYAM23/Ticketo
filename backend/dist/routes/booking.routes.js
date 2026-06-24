@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { getMyBookings, getBookingById, resendEmail, verifyBooking } from '../controllers/booking.controller.js';
+import authMiddleware from '../middleware/auth.middleware.js';
+import adminMiddleware from '../middleware/admin.middleware.js';
+import { resendEmailRateLimit } from '../middleware/rateLimit.middleware.js';
+const router = Router();
+router.get('/me', authMiddleware, getMyBookings);
+router.get('/verify/:id', authMiddleware, adminMiddleware, verifyBooking);
+router.get('/:id', authMiddleware, getBookingById);
+router.post('/:id/resend-email', authMiddleware, resendEmailRateLimit, resendEmail);
+export default router;

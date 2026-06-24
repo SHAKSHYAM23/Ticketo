@@ -21,7 +21,7 @@ router.post(
   lockMultipleSeats
 )
 
-
+// auth required — must be logged in to unlock seats
 router.delete(
   '/seats/lock-many',
   authMiddleware,

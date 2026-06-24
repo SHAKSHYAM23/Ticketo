@@ -1,29 +1,26 @@
 version: '3.8'
 
 services:
-
-
   postgres:
     image: postgres:15-alpine
     container_name: ticket_postgres
-    command: ["postgres", "-c", "max_connections=300"]
+    command: ["postgres", "-c", "max_connections=200"]
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
       POSTGRES_DB: ticketdb
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - ticket_network
 
- 
   redis:
     image: redis:7-alpine
     container_name: ticket_redis
@@ -31,7 +28,6 @@ services:
       redis-server
       --appendonly yes
       --notify-keyspace-events Ex
- 
     ports:
       - "6379:6379"
     volumes:
@@ -43,7 +39,6 @@ services:
       retries: 5
     networks:
       - ticket_network
-
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -64,7 +59,6 @@ services:
     networks:
       - ticket_network
 
-
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: ticket_kafka
@@ -80,7 +74,6 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_LOG_RETENTION_HOURS: 168
-    
     ports:
       - "9092:9092"
     volumes:
@@ -97,11 +90,11 @@ services:
     image: rabbitmq:3.12-management-alpine
     container_name: ticket_rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
     ports:
-      - "5672:5672"    
-      - "15672:15672"  
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -112,9 +105,8 @@ services:
     networks:
       - ticket_network
 
- 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.45.0
     container_name: ticket_prometheus
     ports:
       - "9090:9090"
@@ -125,21 +117,19 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=15d'
-     
     depends_on:
       - postgres
     networks:
       - ticket_network
 
-  
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.0.3
     container_name: ticket_grafana
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
@@ -147,8 +137,6 @@ services:
       - prometheus
     networks:
       - ticket_network
-
-
 
 volumes:
   postgres_data:
@@ -159,8 +147,6 @@ volumes:
   rabbitmq_data:
   prometheus_data:
   grafana_data:
-
-
 
 networks:
   ticket_network:

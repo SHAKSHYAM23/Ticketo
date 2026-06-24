@@ -103,8 +103,11 @@ export const getAllEvents = async (
     select: {
       id: true,
       title: true,
+      description: true,
       venue: true,
       eventDate: true,
+      rowCount: true,
+      seatsPerRow: true,
       totalSeats: true,
       pricePerSeat: true,
       _count: {
@@ -119,7 +122,12 @@ export const getAllEvents = async (
     }
   })
 
-  res.json(events)
+  const formattedEvents = events.map(event => ({
+    ...event,
+    availableSeats: event._count.seats
+  }))
+
+  res.json(formattedEvents)
 }
 
 export const getEventById = async (

@@ -2,8 +2,6 @@ import type{ Request, Response } from 'express'
 import prisma from '../config/db.js'
 import { publishNotification } from '../services/notification.service.js'
 
-
-
 export const getMyBookings = async (
   req: Request,
   res: Response
@@ -35,8 +33,8 @@ export const getMyBookings = async (
     }
   })
 
-
   const transformed = bookings.map(booking => ({
+    id:          booking.id, // ✅ FIX: Added the real ID here so the frontend can use it!
     bookingRef:  `****${booking.id.slice(-8)}`,
     status:      booking.status,
     totalAmount: booking.totalAmount,
@@ -56,8 +54,6 @@ export const getMyBookings = async (
 
   res.status(200).json(transformed)
 }
-
-
 
 export const getBookingById = async (
   req: Request<{ id: string }>,
@@ -96,13 +92,13 @@ export const getBookingById = async (
     return
   }
 
-
   if (booking.userId !== userId) {
     res.status(403).json({ error: 'Access denied' })
     return
   }
 
   res.status(200).json({
+    id:          booking.id, // ✅ FIX: Added here as well for consistency!
     bookingRef:  `****${booking.id.slice(-8)}`,
     status:      booking.status,
     totalAmount: booking.totalAmount,
@@ -125,8 +121,6 @@ export const getBookingById = async (
   })
 }
 
-
-
 export const resendEmail = async (
   req: Request<{ id: string }>,
   res: Response
@@ -134,7 +128,6 @@ export const resendEmail = async (
 
   const userId    = (req as any).user.userId
   const bookingId = req.params.id
-
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -155,7 +148,6 @@ export const resendEmail = async (
     return
   }
 
- 
   if (booking.status !== 'confirmed') {
     res.status(400).json({
       error: 'Email can only be resent for confirmed bookings'
@@ -163,13 +155,11 @@ export const resendEmail = async (
     return
   }
 
-
   await publishNotification({
     bookingId,
     userId,
     eventId: booking.eventId
   })
-
   
   await prisma.booking.update({
     where: { id: bookingId },
@@ -180,7 +170,6 @@ export const resendEmail = async (
     message: 'Confirmation email queued successfully'
   })
 }
-
 
 export const verifyBooking = async (
   req: Request<{ id: string }>,
@@ -226,7 +215,6 @@ export const verifyBooking = async (
     return
   }
 
-
   if (booking.status !== 'confirmed') {
     res.status(400).json({
       valid:  false,
@@ -238,15 +226,14 @@ export const verifyBooking = async (
 
   if (booking.scanned) {
     res.status(400).json({
-      valid:        false,
-      error:        'QR code already used',
+      valid:          false,
+      error:          'QR code already used',
       alreadyScanned: true,
-      scannedAt:    booking.scannedAt
+      scannedAt:      booking.scannedAt
     })
     return
   }
 
- 
   await prisma.booking.update({
     where: { id: bookingId },
     data: {
@@ -254,7 +241,6 @@ export const verifyBooking = async (
       scannedAt: new Date()
     }
   })
-
 
   res.status(200).json({
     valid:      true,

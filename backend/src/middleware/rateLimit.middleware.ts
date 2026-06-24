@@ -31,7 +31,7 @@ export const resendEmailRateLimit = rateLimit({
 
 export const generalRateLimit = rateLimit({
   windowMs: 60 * 1000,
-  max: 1000000,  // for te4sting
+  max: 100,  // for te4sting
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down.' },

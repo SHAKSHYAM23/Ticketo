@@ -54,7 +54,7 @@ export default function SeatMap({
             <span className="w-6 shrink-0 text-center text-sm font-medium text-muted-foreground">
               {rowLabel}
             </span>
-            <div className="flex flex-wrap gap-[2px]">
+            <div className="flex flex-wrap  `gap-0.5`">
               {seats[rowLabel].map((seat) => {
                 const id = getSeatId(seat)
                 const isSelected = selectedSeats.includes(id)
@@ -76,7 +76,7 @@ export default function SeatMap({
                     aria-label={`Seat ${rowLabel}${seat.seatNumber} — ${seat.status}`}
                     disabled={!clickable}
                     onClick={() => clickable && onSeatClick(id)}
-                    className={`flex h-8 w-8 items-center justify-center rounded-[4px] text-[10px] font-medium transition-all ${SEAT_STYLES[visual]}`}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-medium transition-all ${SEAT_STYLES[visual]}`}
                   >
                     {seat.seatNumber}
                   </button>
@@ -115,7 +115,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
   return (
     <span className="flex items-center gap-2">
       <span
-        className="h-4 w-4 rounded-[4px]"
+        className="h-4 w-4 rounded-lg"
         style={{ backgroundColor: color }}
       />
       {label}
